@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is not configured")
     mongo = AsyncIOMotorClient(MONGODB_URI)
-    db = mongo.get_default_database()
+    db = mongo["ai_assistant"]
     groq = Groq(api_key=GROQ_API_KEY)
     await db.users.create_index("username", unique=True)
     await db.sessions.create_index("token", unique=True)
