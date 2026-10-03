@@ -84,20 +84,30 @@ def make_session_token():
 
 async def current_user(request: Request):
     token = request.cookies.get("session")
+
     if not token:
         raise HTTPException(401, "Not authenticated")
+
     session = await db.sessions.find_one({"token": token})
-    if not session or session["expires_at"] < now():
+
+    if not session:
         raise HTTPException(401, "Session expired")
+
+    expires_at = session["expires_at"]
+
+    # MongoDB may return a naive datetime, while now() is timezone-aware
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < now():
+        raise HTTPException(401, "Session expired")
+
     user = await db.users.find_one({"_id": session["user_id"]})
+
     if not user:
         raise HTTPException(401, "User not found")
+
     return user
-
-
-def clean_text(s, limit=12000):
-    return str(s or "").strip()[:limit]
-
 
 async def groq_json(messages, temperature=0.1):
     response = groq.chat.completions.create(
