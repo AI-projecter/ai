@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>AI Sphere</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="auth" class="auth-shell">
+    <div class="auth-card glass">
+      <div class="mini-orb"></div>
+      <h1>AI Sphere</h1>
+      <p>Your voice, chat, images, weather and HTML workspace.</p>
+      <div class="tabs">
+        <button class="tab active" data-auth="login">Sign in</button>
+        <button class="tab" data-auth="register">Create account</button>
+      </div>
+      <input id="username" autocomplete="username" placeholder="Username">
+      <input id="password" autocomplete="current-password" type="password" placeholder="Password">
+      <button id="authButton" class="primary">Sign in</button>
+      <div id="authError" class="error"></div>
+    </div>
+  </div>
+
+  <main id="app" class="app hidden">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="brand-orb"></div>
+        <span>AI Sphere</span>
+      </div>
+      <button id="newChat" class="new-chat">＋ New conversation</button>
+      <div id="history" class="history"></div>
+      <div class="sidebar-bottom">
+        <span id="userLabel"></span>
+        <button id="logout" class="ghost">Log out</button>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <button id="mobileHistory" class="icon-button">☰</button>
+        <div>
+          <div class="eyebrow">INTELLIGENT VOICE ASSISTANT</div>
+          <h2 id="conversationTitle">New conversation</h2>
+        </div>
+        <button id="weatherOpen" class="weather-top">☀ Weather</button>
+      </header>
+
+      <section id="messages" class="messages"></section>
+
+      <div id="typing" class="typing hidden">
+        <span></span><span></span><span></span> Thinking
+      </div>
+
+      <section class="composer-area">
+        <div id="sphereWrap" class="sphere-wrap" title="Tap to speak">
+          <div id="sphere" class="sphere">
+            <div class="sphere-core"></div>
+            <div class="sphere-ring ring-a"></div>
+            <div class="sphere-ring ring-b"></div>
+            <div class="sphere-shine"></div>
+          </div>
+          <div id="sphereStatus">Tap to speak</div>
+        </div>
+
+        <div class="composer glass">
+          <textarea id="input" rows="1" placeholder="Ask anything, generate an image, check weather, or create an HTML file..."></textarea>
+          <button id="send" class="send">➤</button>
+        </div>
+        <div class="composer-hint">
+          Voice: tap the sphere • Image: “create an image…” • Weather: “weather in…” • HTML: “create an HTML page…”
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <section id="weatherPanel" class="modal hidden">
+    <div class="weather-modal glass">
+      <button class="modal-close" id="weatherClose">×</button>
+      <div class="eyebrow">GLOBAL WEATHER</div>
+      <h2>Weather explorer</h2>
+      <div class="weather-search">
+        <input id="weatherInput" placeholder="City, country or latitude, longitude">
+        <button id="weatherSearch" class="primary">Search</button>
+      </div>
+      <div id="weatherResult" class="weather-result empty">Search for a place to see its weather.</div>
+    </div>
+  </section>
+
+  <script src="/app.js"></script>
+</body>
+</html>
