@@ -624,3 +624,7 @@ async def preview_file(request: Request, file_id: str):
     f = await owned_file(request, file_id)
     # Sandboxed iframe on the client provides an additional isolation layer.
     return Response(content=f["content"], media_type="text/html; charset=utf-8")
+
+@app.get("/weather")
+async def weather_page():
+    return FileResponse("realistic_weather.html")
