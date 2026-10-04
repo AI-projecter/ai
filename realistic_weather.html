@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Realistic Weather</title>
+<style>
+:root{
+  --fg:#f7fbff;--muted:rgba(247,251,255,.72);
+  --glass:rgba(35,52,76,.30);--border:rgba(255,255,255,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--fg);background:#162238}
+body{touch-action:pan-y}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 35%,transparent 25%,rgba(0,0,0,.22) 100%)}
+.top{position:fixed;top:18px;left:18px;right:18px;display:flex;gap:10px;align-items:center;z-index:5}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:rgba(20,31,49,.36);backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:20px;padding:8px}
+.search input{width:100%;border:0;outline:0;background:transparent;color:#fff;font-size:16px;padding:9px 8px}
+.search input::placeholder{color:rgba(255,255,255,.65)}
+button{border:0;color:#fff;cursor:pointer;font:inherit}
+.icon{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(14px);display:grid;place-items:center;font-size:19px}
+.panel{position:fixed;left:22px;right:22px;bottom:22px;z-index:4;display:flex;flex-direction:column;gap:13px;pointer-events:none}
+.weather-card,.forecast{pointer-events:auto;background:var(--glass);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid var(--border);box-shadow:0 18px 60px rgba(0,0,0,.20);border-radius:30px}
+.weather-card{padding:20px 22px 18px;max-width:650px}
+.location{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.sub{color:var(--muted);font-size:14px;margin-top:3px}
+.temp{font-size:88px;line-height:.95;font-weight:300;letter-spacing:-5px;margin:8px 0}
+.condition{font-size:20px;font-weight:600}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.11);border-radius:999px;padding:8px 12px;color:rgba(255,255,255,.9);font-size:13px}
+.actions{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+.action{padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.12)}
+.action.primary{background:rgba(255,255,255,.22)}
+.forecast{padding:14px 16px;max-width:650px;overflow:hidden}
+.forecast-title{font-weight:700;margin:2px 4px 10px}
+.days{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{min-width:112px;background:rgba(255,255,255,.08);border-radius:18px;padding:11px}
+.day b{display:block;margin-bottom:7px}
+.day .emoji{font-size:25px;margin:3px 0}
+.day .small{color:var(--muted);font-size:12px}
+#orb{position:fixed;z-index:6;right:22px;bottom:220px;width:92px;height:92px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.95),rgba(130,205,255,.35) 22%,rgba(26,73,118,.75) 63%,rgba(5,17,35,.9));
+box-shadow:0 0 45px rgba(150,215,255,.32),inset 0 0 25px rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
+transition:.25s transform,.25s box-shadow}
+#orb.listening{transform:scale(1.12);box-shadow:0 0 75px rgba(120,220,255,.72),inset 0 0 30px rgba(255,255,255,.3)}
+#orb .core{width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 0 22px #fff;opacity:.9}
+.status{position:fixed;z-index:7;right:22px;bottom:198px;color:#fff;font-size:12px;background:rgba(10,20,35,.35);padding:6px 10px;border-radius:999px;backdrop-filter:blur(10px)}
+#results{position:fixed;z-index:10;top:84px;left:18px;right:18px;max-height:55vh;overflow:auto;background:rgba(18,29,46,.88);backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:22px;padding:8px;display:none}
+.result{padding:13px 14px;border-radius:16px;cursor:pointer}
+.result:hover{background:rgba(255,255,255,.09)}
+.result b{display:block}.result span{color:var(--muted);font-size:12px}
+.saved-badge{position:fixed;top:76px;right:18px;z-index:5;font-size:12px;color:var(--muted)}
+.toast{position:fixed;z-index:20;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(15,24,38,.88);padding:10px 15px;border-radius:999px;backdrop-filter:blur(14px);transition:.25s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{color:var(--muted);padding:20px;text-align:center}
+@media(max-width:600px){
+  .panel{left:14px;right:14px;bottom:14px}.weather-card{padding:17px 18px;border-radius:26px}
+  .temp{font-size:74px}.location{font-size:24px}.forecast{border-radius:25px}
+  #orb{right:17px;bottom:205px;width:78px;height:78px}.status{right:17px;bottom:185px}
+}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="vignette"></div>
+
+<div class="top">
+  <div class="search">
+    <input id="searchInput" placeholder="Search city or place…">
+    <button class="icon" id="searchBtn">⌕</button>
+  </div>
+  <button class="icon" id="coordBtn" title="Coordinates">⌖</button>
+  <button class="icon" id="savedBtn" title="Saved places">♡</button>
+</div>
+
+<div id="results"></div>
+<div class="saved-badge" id="savedBadge"></div>
+
+<div class="panel">
+  <section class="weather-card">
+    <div class="location" id="location">Realistic Weather</div>
+    <div class="sub" id="localTime">Search a place to begin</div>
+    <div class="temp" id="temp">—°</div>
+    <div class="condition" id="condition">Live weather scene</div>
+    <div class="meta">
+      <span class="pill" id="feels">Feels —</span>
+      <span class="pill" id="wind">Wind —</span>
+      <span class="pill" id="humidity">Humidity —</span>
+      <span class="pill" id="rain">Rain —</span>
+    </div>
+    <div class="actions">
+      <button class="action primary" id="saveBtn">♡ Save place</button>
+      <button class="action" id="speakBtn">🔊 Speak weather</button>
+    </div>
+  </section>
+  <section class="forecast">
+    <div class="forecast-title">5-day forecast</div>
+    <div class="days" id="days"></div>
+  </section>
+</div>
+
+<div id="orb" title="Tap to speak"><div class="core"></div></div>
+<div class="status" id="status">Tap the orb to speak</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const canvas=$("scene"),ctx=canvas.getContext("2d");
+let W=innerWidth,H=innerHeight,DPR=Math.min(devicePixelRatio||1,2);
+let weather=null, saved=JSON.parse(localStorage.getItem("realistic_weather_saved")||"[]");
+let cloudSeed=Math.random()*1000, stars=[], drops=[], flakes=[], clouds=[];
+let raf=0, last=performance.now(), listening=false;
+
+function resize(){
+  W=innerWidth;H=innerHeight;DPR=Math.min(devicePixelRatio||1,2);
+  canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+"px";canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  stars=Array.from({length:Math.max(100,Math.floor(W*H/8500))},()=>({x:Math.random(),y:Math.random()*.75,r:.4+Math.random()*1.5,a:.25+Math.random()*.7,p:Math.random()*7}));
+  drops=Array.from({length:Math.max(120,Math.floor(W*H/6000))},()=>({x:Math.random(),y:Math.random(),s:4+Math.random()*9,l:8+Math.random()*20,o:.15+Math.random()*.45}));
+  flakes=Array.from({length:Math.max(80,Math.floor(W*H/9000))},()=>({x:Math.random(),y:Math.random(),s:1+Math.random()*3,v:.3+Math.random()*1,w:Math.random()*6}));
+  clouds=Array.from({length:14},(_,i)=>({x:(i/14)*1.25,y:.13+Math.random()*.3,s:.5+Math.random()*1.25,a:.22+Math.random()*.45,v:.000006+Math.random()*.00001}));
+}
+addEventListener("resize",resize);resize();
+
+function lerp(a,b,t){return a+(b-a)*t}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function weatherInfo(code){
+  if(code===0)return ["Clear","☀️"];
+  if([1,2].includes(code))return ["Partly cloudy","🌤️"];
+  if(code===3)return ["Overcast","☁️"];
+  if([45,48].includes(code))return ["Fog","🌫️"];
+  if([51,53,55,56,57].includes(code))return ["Drizzle","🌦️"];
+  if([61,63,65,66,67].includes(code))return ["Rain","🌧️"];
+  if([71,73,75,77,85,86].includes(code))return ["Snow","❄️"];
+  if([80,81,82].includes(code))return ["Rain showers","🌦️"];
+  if([95,96,99].includes(code))return ["Thunderstorm","⛈️"];
+  return ["Weather","🌤️"];
+}
+function phaseNow(){
+  if(!weather)return {name:"day",t:1};
+  const now=new Date(weather.nowTime);
+  const sunrise=new Date(weather.sunrise), sunset=new Date(weather.sunset);
+  const ms=now.getTime(), sr=sunrise.getTime(), ss=sunset.getTime();
+  const dawn=sr-45*60000,dusk=ss+55*60000;
+  if(ms<dawn)return {name:"night",t:0};
+  if(ms<sr)return {name:"dawn",t:(ms-dawn)/(sr-dawn)};
+  if(ms<ss-45*60000)return {name:"day",t:1};
+  if(ms<ss)return {name:"sunset",t:(ms-(ss-45*60000))/(45*60000)};
+  if(ms<dusk)return {name:"dusk",t:1-(ms-ss)/(55*60000)};
+  return {name:"night",t:0};
+}
+function sceneColors(){
+  const p=phaseNow(), c=weather?.cloud||0;
+  let top=[35,93,145], bot=[110,177,218];
+  if(p.name==="night"){top=[5,14,34];bot=[25,45,73]}
+  else if(p.name==="dawn"||p.name==="sunset"||p.name==="dusk"){
+    const k=p.name==="dawn"?p.t:(p.name==="sunset"?p.t:0);
+    top=[Math.round(25+100*k),Math.round(45+45*k),Math.round(82+25*k)];
+    bot=[Math.round(80+165*k),Math.round(105+75*k),Math.round(130+20*k)];
+  }
+  const cloudFactor=c/100;
+  top=top.map(v=>Math.round(v*(1-.42*cloudFactor)));
+  bot=bot.map(v=>Math.round(v*(1-.34*cloudFactor)));
+  return {top,bot,p};
+}
+function drawCloud(x,y,s,a,dark=false){
+  ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+  const col=dark?"rgba(28,43,61,":"rgba(225,239,249,";
+  ctx.fillStyle=col+a+")";
+  ctx.beginPath();
+  ctx.arc(0,22,34,0,Math.PI*2);ctx.arc(35,8,42,0,Math.PI*2);ctx.arc(76,22,30,0,Math.PI*2);
+  ctx.arc(45,30,55,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=col+(a*.45)+")";ctx.beginPath();ctx.arc(28,-2,27,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function render(t){
+  const dt=Math.min(50,t-last);last=t;
+  const sc=sceneColors(),p=sc.p,c=weather?.cloud||0;
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,`rgb(${sc.top.join(",")})`);g.addColorStop(1,`rgb(${sc.bot.join(",")})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  if(p.name==="night"||p.name==="dusk"){
+    const starAlpha=clamp(1-c/100,0,1)*(p.name==="night"?1:.35);
+    for(const s of stars){
+      const tw=.55+.45*Math.sin(t/900+s.p);
+      ctx.fillStyle=`rgba(255,255,255,${starAlpha*s.a*tw})`;
+      ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);ctx.fill();
+    }
+  }
+  if(p.name==="day"||p.name==="dawn"||p.name==="sunset"){
+    const sunX=W*(p.name==="sunset"?.78:.72), sunY=H*(p.name==="day"?.18:.38);
+    const glow=ctx.createRadialGradient(sunX,sunY,4,sunX,sunY,180);
+    glow.addColorStop(0,"rgba(255,239,185,.85)");glow.addColorStop(1,"rgba(255,210,120,0)");
+    ctx.fillStyle=glow;ctx.fillRect(sunX-190,sunY-190,380,380);
+    ctx.fillStyle="rgba(255,241,188,.95)";ctx.beginPath();ctx.arc(sunX,sunY,30,0,Math.PI*2);ctx.fill();
+  }
+
+  for(const cl of clouds){
+    cl.x+=cl.v*dt;
+    if(cl.x>1.35)cl.x=-.25;
+    const dark=(p.name==="night"||p.name==="dusk"||c>75);
+    drawCloud(cl.x*W,cl.y*H,cl.s*(.8+c/180),cl.a*(.35+c/150),dark);
+  }
+
+  const rain=weather?.rain||0, code=weather?.code||0;
+  if([45,48].includes(code)){
+    ctx.fillStyle="rgba(220,235,245,.12)";ctx.fillRect(0,0,W,H);
+  }
+  if(rain>0.05 || [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code)){
+    const intensity=clamp((rain||.6)/7,0,1);
+    for(const d of drops){
+      d.y+=(.012+.045*intensity)*(dt/16);d.x+=.002*intensity*(dt/16);
+      if(d.y>1.1){d.y=-.05;d.x=Math.random()}
+      ctx.strokeStyle=`rgba(225,240,255,${d.o*(.35+.65*intensity)})`;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(d.x*W,d.y*H);ctx.lineTo(d.x*W-d.s*.35,d.y*H+d.l*(.7+intensity));ctx.stroke();
+    }
+  }
+  if([71,73,75,77,85,86].includes(code)){
+    for(const f of flakes){
+      f.y+=f.v*(dt/16)/100;f.x+=Math.sin(t/900+f.w)*.0008;
+      if(f.y>1.05){f.y=-.03;f.x=Math.random()}
+      ctx.fillStyle="rgba(255,255,255,.75)";ctx.beginPath();ctx.arc(f.x*W,f.y*H,f.s,0,Math.PI*2);ctx.fill();
+    }
+  }
+  if([95,96,99].includes(code) && Math.sin(t/1900)>0.93){
+    ctx.fillStyle="rgba(235,245,255,.18)";ctx.fillRect(0,0,W,H);
+  }
+  raf=requestAnimationFrame(render);
+}
+raf=requestAnimationFrame(render);
+
+function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2200)}
+function updateSavedBadge(){$("savedBadge").textContent=saved.length?`${saved.length} saved place${saved.length>1?"s":""}`:""}
+function saveCurrent(){
+  if(!weather)return;
+  const item={name:weather.name,country:weather.country,lat:weather.lat,lon:weather.lon,savedAt:Date.now()};
+  saved=[item,...saved.filter(x=>Math.abs(x.lat-item.lat)>.0001||Math.abs(x.lon-item.lon)>.0001)].slice(0,20);
+  localStorage.setItem("realistic_weather_saved",JSON.stringify(saved));updateSavedBadge();toast("Place saved");
+}
+function showSaved(){
+  if(!saved.length){$("results").innerHTML='<div class="empty">No saved places yet.</div>';$("results").style.display="block";return}
+  $("results").innerHTML=saved.map((x,i)=>`<div class="result" data-saved="${i}"><b>${escapeHtml(x.name)}${x.country?", "+escapeHtml(x.country):""}</b><span>${x.lat.toFixed(4)}, ${x.lon.toFixed(4)} · tap to open</span></div>`).join("");
+  $("results").style.display="block";
+  document.querySelectorAll("[data-saved]").forEach(e=>e.onclick=()=>{const x=saved[+e.dataset.saved];loadWeather(x.lat,x.lon,x.name,x.country);$("results").style.display="none"});
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+
+async function geocode(q){
+  $("status").textContent="Searching…";
+  const u="https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=15&language=en&format=json";
+  const r=await fetch(u);const j=await r.json();
+  const arr=(j.results||[]);
+  $("results").innerHTML=arr.length?arr.map((x,i)=>`<div class="result" data-r="${i}"><b>${escapeHtml(x.name)}${x.country?", "+escapeHtml(x.country):""}</b><span>${escapeHtml(x.admin1||"")} · ${x.latitude.toFixed(4)}, ${x.longitude.toFixed(4)} · ${escapeHtml(x.timezone||"")}</span></div>`).join(""):'<div class="empty">No places found.</div>';
+  $("results").style.display="block";
+  arr.forEach((x,i)=>document.querySelector(`[data-r="${i}"]`).onclick=()=>{loadWeather(x.latitude,x.longitude,x.name,x.country);$("results").style.display="none"});
+}
+async function loadWeather(lat,lon,name="",country=""){
+  $("status").textContent="Loading weather…";
+  const url="https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+
+    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,rain,showers,weather_code,wind_speed_10m"+
+    "&hourly=temperature_2m,weather_code,precipitation_probability,rain,cloud_cover"+
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"+
+    "&timezone=auto&forecast_days=5";
+  const r=await fetch(url);if(!r.ok)throw new Error("Weather request failed");
+  const j=await r.json(), cur=j.current, daily=j.daily;
+  const info=weatherInfo(cur.weather_code);
+  weather={
+    name:name||"Unknown place",country:country||"",lat,lon,
+    code:cur.weather_code,rain:Math.max(cur.rain||0,cur.showers||0),cloud:0,
+    temp:cur.temperature_2m,humidity:cur.relative_humidity_2m,feels:cur.apparent_temperature,
+    wind:cur.wind_speed_10m,timezone:j.timezone,nowTime:cur.time,
+    sunrise:daily.sunrise[0],sunset:daily.sunset[0]
+  };
+  const idx=Math.max(0,j.hourly.time.findIndex(x=>x>=cur.time));
+  weather.cloud=j.hourly.cloud_cover?.[idx]??0;
+  $("location").textContent=weather.name+(weather.country?", "+weather.country:"");
+  $("localTime").textContent=new Intl.DateTimeFormat("en",{dateStyle:"medium",timeStyle:"short",timeZone:j.timezone}).format(new Date(cur.time));
+  $("temp").textContent=Math.round(weather.temp)+"°";
+  $("condition").textContent=info[1]+" "+info[0];
+  $("feels").textContent="Feels "+Math.round(weather.feels)+"°";
+  $("wind").textContent="Wind "+Math.round(weather.wind)+" km/h";
+  $("humidity").textContent="Humidity "+weather.humidity+"%";
+  $("rain").textContent="Rain "+(weather.rain||0).toFixed(1)+" mm";
+  $("days").innerHTML=daily.time.map((d,i)=>`<div class="day"><b>${i===0?"Today":new Date(d).toLocaleDateString("en",{weekday:"short"})}</b><div class="emoji">${weatherInfo(daily.weather_code[i])[1]}</div><strong>${Math.round(daily.temperature_2m_max[i])}°</strong> <span class="small">${Math.round(daily.temperature_2m_min[i])}°</span></div>`).join("");
+  $("status").textContent="Tap the orb to speak";
+  toast("Weather updated");
+}
+$("searchBtn").onclick=()=>{const q=$("searchInput").value.trim();if(q)geocode(q)};
+$("searchInput").onkeydown=e=>{if(e.key==="Enter")$("searchBtn").click()};
+$("savedBtn").onclick=showSaved;
+$("saveBtn").onclick=saveCurrent;
+$("coordBtn").onclick=async()=>{
+  const s=prompt("Enter coordinates as latitude, longitude");
+  if(!s)return;
+  const p=s.split(",").map(Number);
+  if(p.length!==2||p.some(Number.isNaN)||p[0]<-90||p[0]>90||p[1]<-180||p[1]>180){toast("Invalid coordinates");return}
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p[0]}&lon=${p[1]}`);
+    const j=await r.json();const a=j.address||{};
+    loadWeather(p[0],p[1],a.city||a.town||a.village||a.municipality||"Selected point",a.country||"");
+  }catch(e){loadWeather(p[0],p[1],"Selected point","")}
+};
+
+$("speakBtn").onclick=()=>{
+  if(!weather)return toast("Choose a place first");
+  const info=weatherInfo(weather.code)[0];
+  const text=`${weather.name}. ${Math.round(weather.temp)} degrees. ${info}. Feels like ${Math.round(weather.feels)} degrees. Humidity ${weather.humidity} percent. Wind ${Math.round(weather.wind)} kilometers per hour.`;
+  const u=new SpeechSynthesisUtterance(text);u.rate=.96;speechSynthesis.cancel();speechSynthesis.speak(u);
+};
+
+function startListening(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast("Voice recognition is not supported here");return}
+  const r=new SR();r.lang="en-US";r.interimResults=false;r.maxAlternatives=3;
+  listening=true;$("orb").classList.add("listening");$("status").textContent="Listening…";
+  r.onresult=e=>{const text=e.results[0][0].transcript;$("searchInput").value=text;geocode(text)};
+  r.onerror=()=>toast("Could not understand the request");
+  r.onend=()=>{listening=false;$("orb").classList.remove("listening");$("status").textContent="Tap the orb to speak"};
+  r.start();
+}
+$("orb").onclick=()=>{if(listening)return;startListening()};
+
+updateSavedBadge();
+</script>
+</body>
+</html>
