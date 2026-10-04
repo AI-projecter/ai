@@ -81,6 +81,13 @@ def verify_password(password: str, stored: str):
 def make_session_token():
     return secrets.token_urlsafe(48)
 
+def clean_text(value, max_length):
+    if value is None:
+        return ""
+
+    value = str(value).strip()
+
+    return value[:max_length]
 
 async def current_user(request: Request):
     token = request.cookies.get("session")
